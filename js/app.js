@@ -119,53 +119,6 @@
     if (!dentro || e.target.matches('[data-fechar]')) modal.close();
   });
 
-  // ---------- Processo interativo ----------
-  let etapaAtual = 0;
-
-  function montarTrilha() {
-    $('#trilha').innerHTML = ETAPAS.map((e, i) => `
-      <button type="button" class="trilha-passo" data-passo="${i}" aria-pressed="false">
-        <span class="bolinha">${i + 1}</span>
-        <span class="rotulo">${e.titulo}</span>
-      </button>`).join('');
-  }
-
-  function mostrarEtapa(indice) {
-    const total = ETAPAS.length;
-    const i = Math.max(0, Math.min(total - 1, indice));
-    const e = ETAPAS[i];
-    etapaAtual = i;
-
-    $$('.trilha-passo').forEach((b, j) => {
-      b.setAttribute('aria-pressed', String(j === i));
-      b.classList.toggle('concluido', j < i);
-    });
-
-    // Estado visual da lixeira e destaque dos sensores da etapa
-    const svg = $('#processo .lixeira');
-    if (svg) svg.dataset.etapa = String(i + 1);
-    $$('#processo .hotspot').forEach((h) => {
-      h.classList.toggle('destaque', e.sensores.includes(h.dataset.sensor));
-    });
-
-    // Troca do texto com animação de entrada
-    const det = $('#detalhe');
-    det.classList.remove('entrar');
-    void det.offsetWidth; // reinicia a animação
-    det.classList.add('entrar');
-
-    $('#etapa-num').textContent = `Etapa ${i + 1} de ${total}`;
-    $('#etapa-titulo').textContent = e.titulo;
-    $('#etapa-sub').textContent = e.subtitulo;
-    $('#etapa-texto').textContent = e.texto;
-    $('#etapa-comps').innerHTML = e.sensores.map((k) => `
-      <li><button type="button" data-sensor="${k}"><b>${SENSORES[k].nome}</b>${SENSORES[k].resumo}</button></li>`).join('');
-
-    $('#prev').disabled = i === 0;
-    $('#next').disabled = i === total - 1;
-    $('#contador').textContent = `${i + 1} / ${total}`;
-  }
-
   // ---------- Guia de resíduos ----------
   // Lista plana de itens com a categoria de cada um
   const ITENS_GUIA = Object.entries(GUIA).flatMap(([cat, grupo]) =>
@@ -263,9 +216,6 @@
       const sensor = e.target.closest('[data-sensor]');
       if (sensor) { abrirSensor(sensor.dataset.sensor); return; }
 
-      const passo = e.target.closest('[data-passo]');
-      if (passo) { mostrarEtapa(Number(passo.dataset.passo)); return; }
-
       const item = e.target.closest('[data-item]');
       if (item) {
         $('#busca').value = item.dataset.item;
@@ -288,9 +238,6 @@
       }
     });
 
-    $('#prev').addEventListener('click', () => mostrarEtapa(etapaAtual - 1));
-    $('#next').addEventListener('click', () => mostrarEtapa(etapaAtual + 1));
-
     $('#form-busca').addEventListener('submit', (e) => {
       e.preventDefault();
       responder($('#busca').value);
@@ -303,8 +250,6 @@
   function iniciar() {
     montarLixeiras();
     montarLegendaHero();
-    montarTrilha();
-    mostrarEtapa(0);
     montarGuia();
     atualizarImpacto();
     ativarInclinacao();

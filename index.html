@@ -24,9 +24,8 @@
       <nav class="menu" aria-label="Seções da página">
         <a href="#inicio" data-secao="inicio"><b>01</b>Início</a>
         <a href="#simulacao" data-secao="simulacao"><b>02</b>Simulação</a>
-        <a href="#processo" data-secao="processo"><b>03</b>Processo</a>
-        <a href="#guia" data-secao="guia"><b>04</b>Guia de resíduos</a>
-        <a href="#impacto" data-secao="impacto"><b>05</b>Impacto</a>
+        <a href="#guia" data-secao="guia"><b>03</b>Guia de resíduos</a>
+        <a href="#impacto" data-secao="impacto"><b>04</b>Impacto</a>
       </nav>
     </div>
   </header>
@@ -44,7 +43,7 @@
           <p class="aviso-prototipo">A lixeira ainda está em desenvolvimento. Este site simula como ela funcionaria: você adiciona resíduos da cozinha e acompanha o adubo até ficar pronto.</p>
 
           <div class="acoes">
-            <a class="btn btn-primario" href="#processo">Conheça o Funcionamento</a>
+            <a class="btn btn-primario" href="#simulacao">Conheça o Funcionamento</a>
             <a class="btn btn-secundario" href="#simulacao">Simular um composto</a>
           </div>
 
@@ -98,6 +97,29 @@
             <p class="sim-nota">Toque nos pontos da lixeira para ver os componentes.</p>
           </div>
 
+          <div class="sim-etapas">
+            <p class="sim-etapas-titulo">O que está acontecendo dentro da lixeira</p>
+            <div class="trilha" id="trilha" role="group" aria-label="Etapas do processo"></div>
+
+            <article class="detalhe detalhe-sim" id="detalhe" aria-live="polite">
+              <p class="etapa-num" id="etapa-num">Etapa 1 de 5</p>
+              <h3 id="etapa-titulo"></h3>
+              <p class="sub" id="etapa-sub"></p>
+              <p id="etapa-texto"></p>
+
+              <h4>Componentes acionados</h4>
+              <ul class="comps" id="etapa-comps"></ul>
+
+              <div class="controles">
+                <button type="button" class="btn btn-secundario btn-pequeno" id="prev">Anterior</button>
+                <span class="contador" id="contador">1 / 5</span>
+                <button type="button" class="btn btn-primario btn-pequeno" id="next">Próxima</button>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <div class="sim-layout sim-layout-baixo">
           <div class="sim-painel">
             <h3>Registrar o que você colocou</h3>
             <form id="form-add" class="sim-form" novalidate>
@@ -133,46 +155,11 @@
       </div>
     </section>
 
-    <!-- 03. PROCESSO INTERATIVO -->
-    <section id="processo" class="secao">
-      <div class="container">
-        <header class="cabecalho-secao">
-          <span class="num">03 · Processo</span>
-          <h2>O ciclo por dentro da lixeira</h2>
-          <p>Avance pelas cinco etapas e veja o que acontece em cada uma, e quais componentes trabalham.</p>
-        </header>
-
-        <div class="trilha" id="trilha" role="group" aria-label="Etapas do processo"></div>
-
-        <div class="processo-grid">
-          <div class="palco">
-            <div class="bin-wrap" data-lixeira aria-label="Lixeira na etapa atual"></div>
-          </div>
-
-          <article class="detalhe" id="detalhe" aria-live="polite">
-            <p class="etapa-num" id="etapa-num">Etapa 1 de 5</p>
-            <h3 id="etapa-titulo"></h3>
-            <p class="sub" id="etapa-sub"></p>
-            <p id="etapa-texto"></p>
-
-            <h4>Componentes acionados</h4>
-            <ul class="comps" id="etapa-comps"></ul>
-
-            <div class="controles">
-              <button type="button" class="btn btn-secundario btn-pequeno" id="prev">Anterior</button>
-              <span class="contador" id="contador">1 / 5</span>
-              <button type="button" class="btn btn-primario btn-pequeno" id="next">Próxima</button>
-            </div>
-          </article>
-        </div>
-      </div>
-    </section>
-
     <!-- 03. GUIA DE RESÍDUOS -->
     <section id="guia" class="secao secao-alt">
       <div class="container">
         <header class="cabecalho-secao">
-          <span class="num">04 · Guia & educação</span>
+          <span class="num">03 · Guia & educação</span>
           <h2>O que pode e o que não pode</h2>
           <p>Em dúvida antes de jogar? Pergunte ao EcoFert ou toque em um item da lista.</p>
         </header>
@@ -197,7 +184,7 @@
     <section id="impacto" class="secao secao-alt">
       <div class="container">
         <header class="cabecalho-secao">
-          <span class="num">05 · Impacto & ODS</span>
+          <span class="num">04 · Impacto & ODS</span>
           <h2>Pequenas casas, grande efeito</h2>
           <p>Estime quanto resíduo deixaria de ir ao aterro e quanto metano deixaria de ser emitido.</p>
         </header>

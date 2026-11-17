@@ -653,3 +653,17 @@ button, input { font: inherit; }
   .sim-painel .sim-form { gap: 12px; }
   .sim-painel .btn { width: 100%; }
 }
+
+/* ---------- Etapas dentro da simulação ---------- */
+.sim-etapas { background: var(--card); border-radius: 32px; padding: 28px; box-shadow: var(--sombra); display: flex; flex-direction: column; }
+.sim-etapas-titulo { font: 600 1.05rem var(--fonte-titulo); color: var(--floresta); margin: 0 0 18px; }
+.sim-etapas .trilha { margin-bottom: 22px; }
+.sim-etapas .detalhe { box-shadow: none; padding: 0; background: none; flex: 1; }
+.sim-etapas .detalhe h3 { font-size: 1.45rem; }
+.sim-etapas .controles { padding-top: 18px; }
+.sim-layout-baixo { margin-top: 24px; }
+.sim-layout-baixo .sim-painel { min-width: 0; }
+@media (max-width: 640px) {
+  .sim-etapas { padding: 20px; border-radius: 26px; }
+  .sim-etapas .detalhe h3 { font-size: 1.25rem; }
+}
