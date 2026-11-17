@@ -636,3 +636,20 @@ button, input { font: inherit; }
   .sim-palco { border-radius: 26px; }
   .sim-hoje { padding: 18px; }
 }
+
+/* ---------- Ajustes finos para celular ---------- */
+.sim-form label, .sim-linha > label { min-width: 0; }
+.sim-form input, .sim-form select { max-width: 100%; box-sizing: border-box; }
+.sim-form input[type="date"] {
+  -webkit-appearance: none; appearance: none; display: block; min-height: 50px;
+  text-align: left;
+}
+.sim-erro:empty { display: none; }
+@media (max-width: 640px) {
+  .topo-inner { gap: 6px; padding: 8px 0 6px; }
+  .marca { font-size: 1.05rem; }
+  .marca svg { width: 24px; height: 24px; }
+  .menu a { padding: 6px 11px; }
+  .sim-painel .sim-form { gap: 12px; }
+  .sim-painel .btn { width: 100%; }
+}
