@@ -697,3 +697,13 @@ button, input { font: inherit; }
   .hero-visual { margin-top: 12px; }
   .dica-toque { font-size: .8rem; }
 }
+
+/* ---------- Simulação em coluna única: formulário, lixeira, etapas, lista ---------- */
+.sim-corpo { grid-template-columns: 1fr; max-width: 760px; margin: 0 auto; gap: 22px; }
+.sim-card-form { order: 0; }
+.sim-palco { order: 1; }
+.sim-etapas { order: 2; }
+.sim-card-lista { order: 3; }
+.sim-card-form, .sim-card-lista { grid-column: auto; }
+.sim-palco { flex-direction: column; align-items: center; }
+.sim-palco .sim-bin { width: min(300px, 100%); }
