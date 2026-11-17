@@ -681,3 +681,19 @@ button, input { font: inherit; }
   .sim-etapas { order: 2; }
   .sim-card-lista { order: 3; }
 }
+
+/* ---------- Abertura mais enxuta no celular ---------- */
+@media (max-width: 640px) {
+  .hero { padding: 28px 0 56px; }
+  .hero h1 { font-size: 1.9rem; margin: 14px 0 10px; }
+  .hero h1 span { display: inline; }
+  .lead { font-size: 1.05rem; margin-bottom: 8px; }
+  .hero-texto > p:not(.lead):not(.aviso-prototipo) { font-size: .95rem; }
+  .selo { font-size: .74rem; padding: 5px 12px; }
+  .aviso-prototipo { font-size: .85rem; padding: 10px 14px; margin-top: 14px; }
+  .problema { display: none; }
+  .acoes { margin-top: 22px; }
+  .acoes .btn { width: 100%; }
+  .hero-visual { margin-top: 12px; }
+  .dica-toque { font-size: .8rem; }
+}
