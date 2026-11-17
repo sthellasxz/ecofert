@@ -128,104 +128,47 @@
       <div class="container">
         <header class="cabecalho-secao">
           <span class="num">04 · Simulação</span>
-          <h2>Acompanhe o adubo dia a dia</h2>
-          <p>Os valores são calculados por um modelo simples, não por sensores, porque a lixeira ainda não existe. Adicione resíduos da cozinha e veja em quantos dias o adubo fica pronto.</p>
+          <h2>Veja o adubo amadurecer</h2>
+          <p>A lixeira ainda não existe. Esta simulação mostra como ela funcionaria: escolha o que jogar e acompanhe o composto até ficar pronto.</p>
         </header>
 
-        <form class="sim-controles" id="form-add">
-          <label>Resíduo da cozinha
-            <select id="item"></select>
-          </label>
-          <label>Quantidade (kg)
-            <input id="kg" type="number" min="0.1" max="2" step="0.1" value="0.5">
-          </label>
-          <button type="submit" class="btn btn-primario btn-pequeno">Adicionar à lixeira</button>
-        </form>
+        <div class="sim-layout">
+          <div class="sim-palco">
+            <div class="sim-bin" id="sim-bin" aria-label="Lixeira simulada"></div>
+            <p class="sim-estado" id="sim-estado" aria-live="polite">Aguardando resíduos</p>
+          </div>
 
-        <div class="sim-velocidade" role="group" aria-label="Controles da simulação">
-          <button type="button" class="chip" data-vel="1" aria-pressed="false">1 dia por segundo</button>
-          <button type="button" class="chip" data-vel="5" aria-pressed="true">5 dias por segundo</button>
-          <button type="button" class="chip" data-vel="15" aria-pressed="false">15 dias por segundo</button>
-          <button type="button" class="chip" id="btn-pausa" aria-pressed="false">Pausar</button>
-          <button type="button" class="chip" id="btn-reset">Reiniciar</button>
-        </div>
-
-        <div class="barra-status">
-          <span class="online"><i aria-hidden="true"></i>Simulação ativa</span>
-          <span id="estagio-texto">Maturação: 0%</span>
-          <span id="previsao" class="previsao" aria-live="polite"></span>
-        </div>
-
-        <div class="alerta" id="alerta" role="alert"></div>
-
-        <div class="metricas">
-          <article class="metrica">
-            <p class="rotulo">Resíduo na lixeira</p>
-            <p class="valor" id="m-peso">1,8 kg</p>
-            <p class="sensor">Massa total adicionada</p>
-          </article>
-          <article class="metrica">
-            <p class="rotulo">Temperatura da massa</p>
-            <p class="valor" id="m-temp">31 °C</p>
-            <p class="sensor">Modelo térmico simulado</p>
-          </article>
-          <article class="metrica">
-            <p class="rotulo">Umidade</p>
-            <p class="valor" id="m-umid">58 %</p>
-            <p class="sensor">Modelo de umidade simulado</p>
-          </article>
-          <article class="metrica">
-            <p class="rotulo">Tempo da simulação</p>
-            <p class="valor" id="m-dia">Dia 0</p>
-            <p class="sensor">Dias decorridos no modelo</p>
-          </article>
-        </div>
-
-        <div class="painel">
-          <article class="card grafico">
-            <div class="card-cab">
-              <h3>Histórico de temperatura e umidade</h3>
-              <div class="legenda-graf">
-                <span><i class="sw sw-temp"></i>Temperatura</span>
-                <span><i class="sw sw-umid"></i>Umidade</span>
+          <div class="sim-painel">
+            <div class="sim-resumo">
+              <div>
+                <span class="sim-dia" id="sim-dia">Dia 0</span>
+                <span class="sim-previsao" id="sim-previsao" aria-live="polite"></span>
               </div>
+              <span class="sim-pct" id="sim-pct">0%</span>
             </div>
-            <svg id="grafico" viewBox="0 0 600 200" role="img" aria-label="Gráfico de temperatura e umidade ao longo do tempo">
-              <g class="grade">
-                <line x1="14" y1="50" x2="586" y2="50"/>
-                <line x1="14" y1="100" x2="586" y2="100"/>
-                <line x1="14" y1="150" x2="586" y2="150"/>
-              </g>
-              <path id="linha-umid" class="linha linha-umid" d=""/>
-              <path id="linha-temp" class="linha linha-temp" d=""/>
-              <circle id="ponto-umid" r="5" class="ponto ponto-umid"/>
-              <circle id="ponto-temp" r="5" class="ponto ponto-temp"/>
-            </svg>
-            <div class="resumo-graf">
-              <div><span>Temp. mínima</span><b id="t-min">–</b></div>
-              <div><span>Temp. máxima</span><b id="t-max">–</b></div>
-              <div><span>Umid. mínima</span><b id="u-min">–</b></div>
-              <div><span>Umid. máxima</span><b id="u-max">–</b></div>
-            </div>
-          </article>
-
-          <article class="card">
-            <h3>Maturação e atuadores</h3>
-            <div class="barra" role="progressbar" aria-label="Progresso da maturação" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="barra-prog">
+            <div class="barra sim-barra" role="progressbar" aria-label="Maturação do adubo" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="barra-prog">
               <span id="barra-mat"></span>
             </div>
-            <p class="tempo"><span id="mat-pct">0%</span> · <span id="ritmo"></span></p>
-            <p class="tempo" id="relacao"></p>
 
-            <ul class="atuadores" id="atuadores">
-              <li data-ator="entrada"><span>Entrada de resíduos (servomotor)</span><b>Fechada</b></li>
-              <li data-ator="trit"><span>Trituração (motor DC)</span><b>Parada</b></li>
-              <li data-ator="aquec"><span>Aquecimento da massa</span><b>Parado</b></li>
-            </ul>
+            <h3>Jogue na lixeira</h3>
+            <div class="sim-itens">
+              <button type="button" class="sim-item" data-item="banana">Casca de banana<small>+0,5 kg</small></button>
+              <button type="button" class="sim-item" data-item="borra">Borra de café<small>+0,5 kg</small></button>
+              <button type="button" class="sim-item" data-item="folhas">Folhas secas<small>+0,5 kg</small></button>
+              <button type="button" class="sim-item" data-item="serragem">Serragem<small>+0,5 kg</small></button>
+              <button type="button" class="sim-item proibido" data-item="carne">Carne<small>não pode</small></button>
+            </div>
 
-            <h4>Registro de eventos</h4>
-            <ol class="log" id="log"></ol>
-          </article>
+            <div class="alerta" id="alerta" role="alert"></div>
+
+            <h3>Velocidade</h3>
+            <div class="sim-velocidade" role="group" aria-label="Velocidade da simulação">
+              <button type="button" class="chip" data-vel="1" aria-pressed="false">Lenta</button>
+              <button type="button" class="chip" data-vel="5" aria-pressed="true">Normal</button>
+              <button type="button" class="chip" data-vel="15" aria-pressed="false">Rápida</button>
+              <button type="button" class="chip" id="btn-reset">Recomeçar</button>
+            </div>
+          </div>
         </div>
       </div>
     </section>

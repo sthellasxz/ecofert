@@ -312,5 +312,6 @@
     ligarEventos();
   }
 
+  window.EcoFertBin = { lixeiraSVG };
   iniciar();
 })();

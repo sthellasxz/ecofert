@@ -528,3 +528,40 @@ button, input { font: inherit; }
 @media (max-width: 640px) {
   .sim-controles { grid-template-columns: 1fr; }
 }
+
+/* ---------- Simulação visual ---------- */
+.sim-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: stretch; }
+.sim-palco {
+  background: linear-gradient(160deg, var(--card) 0%, var(--claro) 100%); border-radius: 32px;
+  padding: 32px 24px 28px; box-shadow: var(--sombra);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+}
+.sim-bin { width: min(320px, 100%); }
+.sim-bin .lixeira { width: 100%; height: auto; }
+.sim-estado { margin: 0; font: 600 1rem var(--fonte-titulo); color: var(--floresta); text-align: center; }
+.sim-painel { background: var(--card); border-radius: 32px; padding: 30px; box-shadow: var(--sombra); }
+.sim-painel h3 { font-size: 1.05rem; margin: 26px 0 12px; }
+.sim-resumo { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
+.sim-dia { display: block; font-size: .86rem; color: var(--texto-2); font-weight: 500; }
+.sim-previsao { display: block; font: 700 1.5rem var(--fonte-titulo); color: var(--floresta); line-height: 1.2; margin-top: 4px; }
+.sim-pct { font: 700 2rem var(--fonte-titulo); color: var(--natural); }
+.sim-barra { height: 18px; margin-top: 14px; }
+.sim-itens { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sim-item {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; cursor: pointer;
+  padding: 14px 16px; border: 0; border-radius: 18px; background: var(--claro); color: var(--floresta);
+  font: 600 .95rem var(--fonte); text-align: left; transition: transform .2s ease, box-shadow .2s ease;
+}
+.sim-item small { font-weight: 500; color: var(--texto-2); font-size: .8rem; }
+.sim-item:hover { transform: translateY(-2px); box-shadow: var(--sombra); }
+.sim-item:active { transform: scale(.98); }
+.sim-item.proibido { background: #F7E1DB; color: #7A2E20; }
+.sim-painel .sim-velocidade { margin: 0; }
+.sim-painel .alerta { margin: 16px 0 0; }
+@media (max-width: 900px) { .sim-layout { grid-template-columns: 1fr; } }
+@media (max-width: 640px) {
+  .sim-painel { padding: 22px; border-radius: 26px; }
+  .sim-palco { border-radius: 26px; }
+  .sim-previsao { font-size: 1.25rem; }
+  .sim-itens { grid-template-columns: 1fr; }
+}
