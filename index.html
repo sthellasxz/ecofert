@@ -87,7 +87,7 @@
 
         <div class="sim-status" id="sim-status" role="status" aria-live="polite"></div>
 
-        <div class="sim-layout">
+        <div class="sim-corpo">
           <div class="sim-palco">
             <div class="sim-bin" data-lixeira-sim id="sim-bin" aria-label="Lixeira simulada"></div>
             <p class="sim-pct-linha"><span>Maturação</span><b class="sim-pct" id="sim-pct">0%</b></p>
@@ -117,10 +117,8 @@
               </div>
             </article>
           </div>
-        </div>
 
-        <div class="sim-layout sim-layout-baixo">
-          <div class="sim-painel">
+          <div class="sim-painel sim-card-form">
             <h3>Registrar o que você colocou</h3>
             <form id="form-add" class="sim-form" novalidate>
               <label>O que você colocou
@@ -147,6 +145,9 @@
               <button type="submit" class="btn btn-primario">Colocar na lixeira</button>
             </form>
 
+          </div>
+
+          <div class="sim-painel sim-card-lista">
             <h3>Na lixeira agora</h3>
             <ul class="sim-lista" id="sim-lista"></ul>
             <button type="button" class="link-simples" id="btn-esvaziar">Esvaziar a lixeira</button>

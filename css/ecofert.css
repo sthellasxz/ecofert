@@ -667,3 +667,17 @@ button, input { font: inherit; }
   .sim-etapas { padding: 20px; border-radius: 26px; }
   .sim-etapas .detalhe h3 { font-size: 1.25rem; }
 }
+
+/* ---------- Ordem da simulação no celular: formulário primeiro ---------- */
+.sim-corpo { display: grid; grid-template-columns: 1fr 1.1fr; gap: 24px; align-items: start; }
+.sim-corpo > .sim-painel { min-width: 0; }
+.sim-card-form, .sim-card-lista { margin-top: 0; }
+.sim-card-form { grid-column: 1; }
+.sim-card-lista { grid-column: 2; }
+@media (max-width: 900px) {
+  .sim-corpo { grid-template-columns: 1fr; }
+  .sim-card-form { order: 0; }
+  .sim-palco { order: 1; }
+  .sim-etapas { order: 2; }
+  .sim-card-lista { order: 3; }
+}
