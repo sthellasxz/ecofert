@@ -313,5 +313,6 @@
   }
 
   window.EcoFertBin = { lixeiraSVG };
+  window.EcoFertGuia = { buscarGuia, nomes: ITENS_GUIA.map((r) => r.item.nome) };
   iniciar();
 })();

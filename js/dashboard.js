@@ -1,179 +1,232 @@
 /*
- * EcoFert — simulação visual do composto.
- * A lixeira ainda está em desenvolvimento: um modelo simples calcula a maturação
- * dia a dia e a ilustração mostra o adubo se transformando. Quando o hardware existir,
- * substitua o modelo pelas leituras reais do ESP32.
+ * EcoFert — simulação de compostagem com datas.
+ * A pessoa registra o que colocou e em que dia. Cada material amadurece conforme o
+ * tempo que passa na lixeira; o composto fica pronto quando todos os materiais
+ * completam o prazo. Quando o hardware existir, os registros poderão vir do ESP32.
  */
 (() => {
   'use strict';
 
   const $ = (sel) => document.querySelector(sel);
+  const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-  // ---------- Premissas do modelo (ilustrativas) ----------
-  const DIAS_BASE = 30;              // dias até maturar em condições ideais
-  const TEMP_IDEAL = [45, 60];       // °C
-  const UMID_IDEAL = [50, 60];       // %
-  const RELACAO_IDEAL = [1.0, 1.6];  // kg marrom por kg verde
-  const UMID_ALVO = 55;
-  const TEMP_PICO = 52;
-  const TEMP_FINAL = 34;
-  const KG_POR_CLIQUE = 0.5;
-  const KG_CHEIO = 4;                // massa que enche a lixeira ilustrada
+  // ---------- Premissas (ilustrativas) ----------
+  const DIAS_MATURACAO = { pode: 30, moderacao: 45 };  // dias até cada categoria ficar pronta
+  const KG_CHEIO = 5;                                  // massa que enche a ilustração
+  const CHAVE = 'ecofert-simulacao-v1';
+  const FRESCO = [201, 164, 107];
+  const MADURO = [74, 51, 34];
+  const ROTULO = { pode: 'Pode compostar', moderacao: 'Com moderação', nao: 'Não pode' };
 
-  const TIPO = {
-    banana: 'verde', borra: 'verde',
-    folhas: 'marrom', serragem: 'marrom',
-    carne: 'proibido'
-  };
+  // ---------- Datas (sempre no fuso local, em formato AAAA-MM-DD) ----------
+  const pad = (n) => String(n).padStart(2, '0');
+  const paraISO = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const hojeISO = () => paraISO(new Date());
+  const dataDe = (iso) => new Date(`${iso}T00:00:00`);
+  const diasEntre = (a, b) => Math.round((dataDe(b) - dataDe(a)) / 86400000);
+  const somarDias = (iso, n) => { const d = dataDe(iso); d.setDate(d.getDate() + n); return paraISO(d); };
+  const formatarData = (iso) => dataDe(iso).toLocaleDateString('pt-BR');
+  const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
 
-  const FRESCO = [201, 164, 107];    // cor do resíduo recém-colocado
-  const MADURO = [74, 51, 34];       // cor do composto pronto
+  // ---------- Estado ----------
+  function carregar() {
+    try {
+      const s = JSON.parse(localStorage.getItem(CHAVE));
+      return s && s.hoje && Array.isArray(s.itens) ? s : null;
+    } catch (_) { return null; }
+  }
+  function salvar() {
+    try { localStorage.setItem(CHAVE, JSON.stringify(estado)); } catch (_) { /* navegador sem armazenamento */ }
+  }
 
-  const INICIAL = { dia: 0, verde: 1.0, marrom: 1.2, proibido: 0, mat: 0, temp: 46, umid: 58, ultimaAdicao: -999 };
-  let e = { ...INICIAL };
-  let velocidade = 5;                // dias simulados por segundo real
-  let prontoAvisado = false;
-  let ultimaAdicaoReal = -99999;     // instante real (ms) da última adição, para animar a tampa
+  let estado = carregar() || { hoje: hojeISO(), itens: [] };
+  let idSeq = Date.now();
+  let svg, massa;
+  let ultimaAdicaoReal = -99999;
 
   // ---------- Modelo ----------
-  function faixa(v, [min, max], tolerancia) {
-    if (v >= min && v <= max) return 1;
-    const distancia = v < min ? min - v : v - max;
-    return Math.max(0.2, 1 - distancia / tolerancia);
+  const idadeDias = (it) => Math.max(0, diasEntre(it.data, estado.hoje));
+  const progressoItem = (it) => (it.cat === 'nao' ? 0 : Math.min(1, idadeDias(it) / DIAS_MATURACAO[it.cat]));
+  const temProibido = () => estado.itens.some((it) => it.cat === 'nao');
+  const pronto = () => estado.itens.length > 0 && !temProibido() && estado.itens.every((it) => progressoItem(it) >= 1);
+  const totalKg = () => estado.itens.reduce((s, it) => s + it.kg, 0);
+
+  function progressoTotal() {
+    const t = totalKg();
+    return t ? estado.itens.reduce((s, it) => s + it.kg * progressoItem(it), 0) / t : 0;
   }
 
-  function razao() {
-    return e.verde > 0 ? e.marrom / e.verde : null;
-  }
-
-  function fatores() {
-    const r = razao();
-    const fT = faixa(e.temp, TEMP_IDEAL, 15);
-    const fU = faixa(e.umid, UMID_IDEAL, 25);
-    const fR = r === null ? 0.2 : faixa(r, RELACAO_IDEAL, 1.0);
-    const fP = e.proibido > 0 ? 0.5 : 1;
-    return { total: fT * fU * fR * fP };
-  }
-
-  function avancar(dt) {
-    e.dia += dt;
-    const alvoT = e.mat < 0.85 ? TEMP_PICO : TEMP_FINAL;
-    e.temp += (alvoT - e.temp) * Math.min(1, 0.3 * dt);
-    e.umid += (UMID_ALVO - e.umid) * Math.min(1, 0.05 * dt);
-    e.mat = Math.min(1, e.mat + (1 / DIAS_BASE) * fatores().total * dt);
-  }
-
-  function previsao() {
-    if (e.mat >= 1) return { pronto: true };
-    const taxa = (1 / DIAS_BASE) * fatores().total;
-    if (taxa <= 0) return { pronto: false, dias: null };
-    return { pronto: false, dias: Math.ceil((1 - e.mat) / taxa) };
-  }
-
-  function totalKg() {
-    return e.verde + e.marrom + e.proibido;
-  }
-
-  function adicionar(id) {
-    const tipo = TIPO[id];
-    if (!tipo) return;
-    if (tipo === 'verde') { e.verde += KG_POR_CLIQUE; e.umid = Math.min(80, e.umid + 1.5); }
-    if (tipo === 'marrom') { e.marrom += KG_POR_CLIQUE; e.umid = Math.max(30, e.umid - 1); }
-    if (tipo === 'proibido') e.proibido += KG_POR_CLIQUE;
-    e.ultimaAdicao = e.dia;
-    ultimaAdicaoReal = performance.now();
-    render();
+  // O último material a terminar define o dia em que o composto fica pronto
+  function diaPronto() {
+    if (!estado.itens.length || temProibido()) return null;
+    return estado.itens.map((it) => somarDias(it.data, DIAS_MATURACAO[it.cat])).sort().pop();
   }
 
   // ---------- Ilustração ----------
-  let svg, massa;
-
   function montarLixeira() {
     const alvo = $('#sim-bin');
     alvo.innerHTML = window.EcoFertBin.lixeiraSVG();
     svg = alvo.querySelector('svg');
-    // Camada do resíduo: fica atrás do aquecimento e do visor
     alvo.querySelector('.heat').insertAdjacentHTML('beforebegin', '<rect class="massa" x="70" y="296" width="152" height="0" rx="22"/>');
     massa = alvo.querySelector('.massa');
   }
 
-  function corMassa(mat) {
-    const c = FRESCO.map((f, i) => Math.round(f + (MADURO[i] - f) * mat));
+  function corMassa(p) {
+    const c = FRESCO.map((f, i) => Math.round(f + (MADURO[i] - f) * p));
     return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
-  }
-
-  function estadoTexto(abrindo) {
-    if (abrindo) return 'Tampa aberta: resíduo caindo';
-    if (e.mat >= 1) return 'Composto maduro e pronto';
-    if (e.temp > 40) return 'Massa aquecida: decomposição em andamento';
-    if (e.dia < 0.5) return 'Aguardando resíduos';
-    return 'Mistura em repouso';
   }
 
   // ---------- Tela ----------
   function render() {
+    $('#sim-hoje').textContent = formatarData(estado.hoje);
+    $('#sim-hoje-input').value = estado.hoje;
+
+    const p = progressoTotal();
+    const pct = Math.round(p * 100);
     const altura = Math.round(Math.min(1, totalKg() / KG_CHEIO) * 150 * 10) / 10;
     massa.setAttribute('height', altura);
     massa.setAttribute('y', 296 - altura);
-    massa.setAttribute('fill', corMassa(e.mat));
+    massa.setAttribute('fill', corMassa(p));
 
     const abrindo = performance.now() - ultimaAdicaoReal < 1200;
-    svg.dataset.etapa = abrindo ? '1' : e.mat >= 1 ? '5' : e.temp > 40 ? '4' : '0';
+    svg.dataset.etapa = abrindo ? '1' : pronto() ? '5' : estado.itens.length ? '4' : '0';
 
-    const pct = Math.round(e.mat * 100);
-    $('#sim-dia').textContent = `Dia ${Math.floor(e.dia)}`;
     $('#sim-pct').textContent = `${pct}%`;
     $('#barra-mat').style.width = `${pct}%`;
     $('#barra-prog').setAttribute('aria-valuenow', String(pct));
 
-    const p = previsao();
-    let txt;
-    if (p.pronto) txt = 'Pronto para colheita!';
-    else if (p.dias === null) txt = 'Faltam condições para maturar';
-    else txt = `Pronto em ~${p.dias} ${p.dias === 1 ? 'dia' : 'dias'}`;
-    $('#sim-previsao').textContent = txt;
-    $('#sim-estado').textContent = estadoTexto(abrindo);
+    const status = $('#sim-status');
+    if (!estado.itens.length) {
+      status.className = 'sim-status';
+      status.textContent = 'A lixeira está vazia. Registre o primeiro resíduo abaixo.';
+    } else if (temProibido()) {
+      status.className = 'sim-status erro';
+      status.textContent = 'Há material que não pode ser compostado. Remova-o da lixeira para o composto amadurecer.';
+    } else if (pronto()) {
+      status.className = 'sim-status pronto';
+      status.textContent = 'Composto pronto para colheita!';
+    } else {
+      const dias = diasEntre(estado.hoje, diaPronto());
+      status.className = 'sim-status';
+      status.textContent = `Fica pronto em ${plural(dias, 'dia', 'dias')}, no dia ${formatarData(diaPronto())}`;
+    }
 
-    const alerta = $('#alerta');
-    alerta.classList.toggle('visivel', e.proibido > 0);
-    alerta.textContent = e.proibido > 0
-      ? 'Carne não pode ser compostada: a mistura desacelera e pode ter odor.'
-      : '';
+    renderLista();
   }
 
-  function reiniciar() {
-    e = { ...INICIAL };
-    prontoAvisado = false;
+  function renderLista() {
+    const lista = $('#sim-lista');
+    if (!estado.itens.length) {
+      lista.innerHTML = '<li class="vazio">Nada registrado ainda.</li>';
+      return;
+    }
+    lista.innerHTML = estado.itens
+      .slice()
+      .sort((a, b) => a.data.localeCompare(b.data))
+      .map((it) => {
+        const idade = idadeDias(it);
+        const pr = Math.round(progressoItem(it) * 100);
+        let situacao;
+        if (it.cat === 'nao') situacao = 'Não pode: remova para o composto amadurecer';
+        else if (pr >= 100) situacao = 'Pronto';
+        else situacao = `Faltam ${plural(DIAS_MATURACAO[it.cat] - idade, 'dia', 'dias')}`;
+        return `
+          <li class="cat-${it.cat}">
+            <div class="sim-info">
+              <b>${esc(it.nome)}</b>
+              <span>${it.kg.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} kg · ${ROTULO[it.cat]} · colocado em ${formatarData(it.data)} · há ${plural(idade, 'dia', 'dias')}</span>
+            </div>
+            <button type="button" class="sim-remover" data-remover="${it.id}" aria-label="Remover ${esc(it.nome)}">×</button>
+            <div class="sim-mini"><i style="width:${pr}%"></i></div>
+            <small>${situacao}</small>
+          </li>`;
+      })
+      .join('');
+  }
+
+  // ---------- Ações ----------
+  function adicionar(ev) {
+    ev.preventDefault();
+    const erro = $('#sim-erro');
+    erro.textContent = '';
+
+    const texto = $('#sim-texto').value.trim();
+    if (!texto) {
+      erro.textContent = 'Escreva o que você colocou ou escolha uma sugestão.';
+      $('#sim-texto').focus();
+      return;
+    }
+
+    const kg = Math.round(Number($('#sim-kg').value) * 10) / 10;
+    if (!(kg >= 0.1 && kg <= 5)) {
+      erro.textContent = 'A quantidade deve ficar entre 0,1 e 5 kg.';
+      return;
+    }
+
+    const data = $('#sim-data').value || estado.hoje;
+    if (data > estado.hoje) {
+      erro.textContent = 'O dia em que colocou não pode ser depois de hoje.';
+      return;
+    }
+
+    let cat = $('#sim-cat').value;
+    let nome = texto;
+    if (cat === 'auto') {
+      const achado = window.EcoFertGuia.buscarGuia(texto)[0];
+      if (!achado) {
+        erro.textContent = 'Não reconheci este item. Escolha a categoria acima.';
+        $('#sim-cat').focus();
+        return;
+      }
+      cat = achado.cat;
+      nome = achado.item.nome;
+    }
+
+    estado.itens.push({ id: String(++idSeq), nome, cat, kg, data });
+    $('#sim-texto').value = '';
+    $('#sim-cat').value = 'auto';
+    ultimaAdicaoReal = performance.now();
+    setTimeout(render, 1250);
+    salvar();
     render();
   }
 
-  function marcarVelocidade() {
-    document.querySelectorAll('[data-vel]').forEach((b) => {
-      b.setAttribute('aria-pressed', String(Number(b.dataset.vel) === velocidade));
+  function mudarHoje(novo) {
+    if (!novo) return;
+    estado.hoje = novo;
+    salvar();
+    render();
+  }
+
+  function ligarEventos() {
+    $('#form-add').addEventListener('submit', adicionar);
+
+    $('#btn-mais1').addEventListener('click', () => mudarHoje(somarDias(estado.hoje, 1)));
+    $('#btn-mais7').addEventListener('click', () => mudarHoje(somarDias(estado.hoje, 7)));
+    $('#sim-hoje-input').addEventListener('change', (ev) => mudarHoje(ev.target.value));
+
+    $('#sim-lista').addEventListener('click', (ev) => {
+      const botao = ev.target.closest('[data-remover]');
+      if (!botao) return;
+      estado.itens = estado.itens.filter((it) => it.id !== botao.dataset.remover);
+      salvar();
+      render();
+    });
+
+    $('#btn-esvaziar').addEventListener('click', () => {
+      if (!estado.itens.length) return;
+      if (!window.confirm('Esvaziar a lixeira e apagar todos os registros?')) return;
+      estado.itens = [];
+      salvar();
+      render();
     });
   }
 
   // ---------- Inicialização ----------
   montarLixeira();
-  marcarVelocidade();
-
-  document.querySelectorAll('.sim-item').forEach((b) => {
-    b.addEventListener('click', () => adicionar(b.dataset.item));
-  });
-  document.querySelectorAll('[data-vel]').forEach((b) => {
-    b.addEventListener('click', () => {
-      velocidade = Number(b.dataset.vel);
-      marcarVelocidade();
-    });
-  });
-  $('#btn-reset').addEventListener('click', reiniciar);
-
+  $('#lista-itens').innerHTML = window.EcoFertGuia.nomes.map((n) => `<option value="${esc(n)}"></option>`).join('');
+  $('#sim-data').value = estado.hoje;
+  $('#sim-data').max = estado.hoje;
+  ligarEventos();
   render();
-
-  // Avança o modelo 10 vezes por segundo
-  setInterval(() => {
-    avancar(0.1 * velocidade);
-    if (e.mat >= 1 && !prontoAvisado) prontoAvisado = true;
-    render();
-  }, 100);
 })();
