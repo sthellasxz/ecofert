@@ -497,3 +497,34 @@ button, input { font: inherit; }
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------- Controles da simulação ---------- */
+.sim-controles {
+  display: grid; grid-template-columns: 2fr 1fr auto; gap: 12px; align-items: end;
+  background: var(--card); border-radius: 26px; padding: 20px 22px; box-shadow: var(--sombra); margin-bottom: 14px;
+}
+.sim-controles label { display: flex; flex-direction: column; gap: 6px; font-size: .84rem; font-weight: 600; color: var(--floresta); }
+.sim-controles select, .sim-controles input {
+  font: 500 .95rem var(--fonte); padding: 12px 14px; border-radius: 14px;
+  border: 1.5px solid var(--borda); background: #fff; color: var(--texto); min-width: 0; width: 100%;
+}
+.sim-controles select:focus, .sim-controles input:focus { outline: none; border-color: var(--natural); box-shadow: 0 0 0 4px rgba(111, 159, 120, .2); }
+.sim-velocidade { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.sim-velocidade .chip[aria-pressed="true"] { background: var(--natural); color: #fff; border-color: var(--natural); }
+.sim-velocidade .chip[aria-pressed="true"]::before { background: #fff; }
+.previsao { font-weight: 600; color: var(--floresta); }
+.alerta {
+  display: none; background: #F7E1DB; color: #7A2E20; border-radius: 16px;
+  padding: 12px 16px; font-size: .9rem; margin-bottom: 16px;
+}
+.alerta.visivel { display: block; }
+.aviso-prototipo {
+  background: var(--card); border-left: 4px solid var(--amarelo); border-radius: 14px;
+  padding: 12px 16px; font-size: .92rem; color: var(--texto-2); margin-top: 18px;
+}
+.atuadores li.ligado b { background: var(--natural); color: #fff; }
+.log li.alerta { border-left-color: var(--vermelho); color: #7A2E20; }
+.log li.pronto { border-left-color: var(--natural); color: var(--floresta); font-weight: 600; }
+@media (max-width: 640px) {
+  .sim-controles { grid-template-columns: 1fr; }
+}

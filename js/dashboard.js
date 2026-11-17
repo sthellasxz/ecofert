@@ -1,68 +1,167 @@
 /*
- * EcoFert — dashboard IoT simulado.
- * Telemetria com pequenas variações e um "Modo Demonstração" que percorre o ciclo completo.
- * Para usar dados reais, substitua a função `variarLeitura` por leituras do ESP32
- * (por exemplo, via fetch periódico ao endpoint de telemetria).
+ * EcoFert — simulação do processo de compostagem.
+ * A lixeira ainda está em desenvolvimento: este painel usa um modelo simples para
+ * calcular como o adubo evolui a cada dia simulado. Quando o hardware existir,
+ * substitua `avancar` e as leituras pelos dados reais do ESP32.
  */
 (() => {
   'use strict';
 
   const $ = (sel) => document.querySelector(sel);
 
-  // Estado inicial de referência (igual ao que aparece no HTML)
-  const BASE = { peso: 1.8, temp: 31, umid: 58, nivel: 35, mat: 70, tampa: 'fechada' };
-  const estado = { ...BASE, motor: false, aquec: false };
+  // ---------- Premissas do modelo (ilustrativas; ajuste conforme o trabalho) ----------
+  const DIAS_BASE = 30;              // dias até maturar em condições ideais
+  const TEMP_IDEAL = [45, 60];       // °C: faixa ideal da massa em compostagem quente
+  const UMID_IDEAL = [50, 60];       // %: umidade ideal
+  const RELACAO_IDEAL = [1.0, 1.6];  // kg de material marrom por kg de material verde
+  const UMID_ALVO = 55;              // a umidade tende a esse valor sem adição de líquidos
+  const TEMP_PICO = 52;              // temperatura alcançada durante a fase ativa
+  const TEMP_FINAL = 34;             // temperatura na fase de cura
 
-  const MAX_PONTOS = 30;
+  // Resíduos que podem ser adicionados na simulação
+  const ITENS = [
+    { id: 'banana', nome: 'Casca de banana', tipo: 'verde' },
+    { id: 'fruta', nome: 'Restos de frutas', tipo: 'verde' },
+    { id: 'vegetal', nome: 'Vegetais crus', tipo: 'verde' },
+    { id: 'borra', nome: 'Borra de café', tipo: 'verde' },
+    { id: 'folhas', nome: 'Folhas secas', tipo: 'marrom' },
+    { id: 'serragem', nome: 'Serragem (sem tinta)', tipo: 'marrom' },
+    { id: 'ovo', nome: 'Cascas de ovo', tipo: 'neutro' },
+    { id: 'carne', nome: 'Carne (não pode)', tipo: 'proibido' },
+    { id: 'laticinio', nome: 'Laticínio (não pode)', tipo: 'proibido' }
+  ];
+
+  const INICIAL = { dia: 0, verde: 1.0, marrom: 0.8, neutro: 0, proibido: 0, mat: 0, temp: 31, umid: 58, ultimaAdicao: -999 };
+  let e = { ...INICIAL };
+  let velocidade = 5;     // dias simulados por segundo real
+  let pausado = false;
+  let prontoAvisado = false;
+
   const historico = { temp: [], umid: [] };
+  const MAX_PONTOS = 30;
   const limites = { temp: [20, 60], umid: [30, 90] };
 
-  const rand = (min, max) => min + Math.random() * (max - min);
   const limitar = (v, min, max) => Math.min(max, Math.max(min, v));
-  const fmtKg = (n) => n.toFixed(1).replace('.', ',');
+  const fmt = (n, casas = 1) => n.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
 
-  // Preenche o gráfico com leituras anteriores para não começar vazio
+  // Histórico inicial para o gráfico não começar vazio
   for (let i = 0; i < 20; i++) {
-    historico.temp.push(31 + rand(-1, 1));
-    historico.umid.push(58 + rand(-2, 2));
+    historico.temp.push(31 + (Math.random() - 0.5) * 2);
+    historico.umid.push(58 + (Math.random() - 0.5) * 4);
   }
 
-  // ---------- Log de eventos ----------
-  function registrar(msg) {
-    const agora = new Date();
-    const hora = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  // ---------- Modelo ----------
+  // 1 quando o valor está na faixa ideal; cai linearmente fora dela até um mínimo de 20%
+  function faixa(v, [min, max], tolerancia) {
+    if (v >= min && v <= max) return 1;
+    const distancia = v < min ? min - v : v - max;
+    return Math.max(0.2, 1 - distancia / tolerancia);
+  }
+
+  function razao() {
+    return e.verde > 0 ? e.marrom / e.verde : null;
+  }
+
+  // Fatores que aceleram ou atrasam a maturação (cada um vai de 0 a 1)
+  function fatores() {
+    const r = razao();
+    const fT = faixa(e.temp, TEMP_IDEAL, 15);
+    const fU = faixa(e.umid, UMID_IDEAL, 25);
+    const fR = r === null ? 0.2 : faixa(r, RELACAO_IDEAL, 1.0);
+    const fP = e.proibido > 0 ? 0.5 : 1;   // item que não pode reduz o ritmo
+    return { fT, fU, fR, fP, total: fT * fU * fR * fP };
+  }
+
+  // Avança a simulação em `dt` dias
+  function avancar(dt) {
+    e.dia += dt;
+    const alvoT = e.mat < 0.85 ? TEMP_PICO : TEMP_FINAL;
+    e.temp += (alvoT - e.temp) * Math.min(1, 0.3 * dt);
+    e.umid += (UMID_ALVO - e.umid) * Math.min(1, 0.05 * dt);
+    e.mat = Math.min(1, e.mat + (1 / DIAS_BASE) * fatores().total * dt);
+  }
+
+  // Estimativa de dias restantes com as condições atuais
+  function previsao() {
+    if (e.mat >= 1) return { pronto: true };
+    const taxa = (1 / DIAS_BASE) * fatores().total;
+    if (taxa <= 0) return { pronto: false, dias: null };
+    return { pronto: false, dias: Math.ceil((1 - e.mat) / taxa) };
+  }
+
+  // Adiciona um resíduo escolhido na lixeira simulada
+  function adicionar(id, kg) {
+    const item = ITENS.find((i) => i.id === id);
+    if (!item || !(kg > 0)) return;
+
+    if (item.tipo === 'verde') { e.verde += kg; e.umid = limitar(e.umid + 3 * kg, 30, 80); }
+    if (item.tipo === 'marrom') { e.marrom += kg; e.umid = limitar(e.umid - 2 * kg, 30, 80); }
+    if (item.tipo === 'neutro') e.neutro += kg;
+    if (item.tipo === 'proibido') e.proibido += kg;
+    e.ultimaAdicao = e.dia;
+
+    registrar(`${fmt(kg)} kg de ${item.nome.toLowerCase()} adicionados.`);
+    if (item.tipo === 'proibido') {
+      registrar('Item que não pode ser compostado: o ritmo cai e há risco de odor.', 'alerta');
+    }
+    render();
+  }
+
+  // ---------- Registro de eventos ----------
+  function registrar(msg, tipo = '') {
+    const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const li = document.createElement('li');
-    li.innerHTML = `<time>${hora}</time>`;
-    li.append(document.createTextNode(msg));
+    if (tipo) li.className = tipo;
+    const t = document.createElement('time');
+    t.textContent = hora;
+    li.append(t, document.createTextNode(msg));
     const log = $('#log');
     log.prepend(li);
-    while (log.children.length > 12) log.lastElementChild.remove();
+    while (log.children.length > 14) log.lastElementChild.remove();
   }
 
-  // ---------- Atualização da tela ----------
+  // ---------- Tela ----------
   function render() {
-    $('#m-peso').textContent = `${fmtKg(estado.peso)} kg`;
-    $('#m-temp').textContent = `${Math.round(estado.temp)} °C`;
-    $('#m-umid').textContent = `${Math.round(estado.umid)} %`;
-    $('#m-nivel').textContent = `${Math.round(estado.nivel)} %`;
-    $('#m-tampa').textContent = `${estado.tampa === 'aberta' ? 'Tampa aberta' : 'Tampa fechada'} · Ultrassônico`;
+    const massa = e.verde + e.marrom + e.neutro + e.proibido;
+    $('#m-peso').textContent = `${fmt(massa)} kg`;
+    $('#m-temp').textContent = `${Math.round(e.temp)} °C`;
+    $('#m-umid').textContent = `${Math.round(e.umid)} %`;
+    $('#m-dia').textContent = `Dia ${Math.floor(e.dia)}`;
 
-    const mat = Math.round(estado.mat);
-    $('#barra-mat').style.width = `${estado.mat}%`;
-    $('#barra-prog').setAttribute('aria-valuenow', String(mat));
-    $('#mat-pct').textContent = `${mat}%`;
-    $('#estagio-texto').textContent = estado.mat >= 100
-      ? 'Composto pronto para colheita'
-      : `Fase de Maturação: ${mat}%`;
+    const pct = Math.round(e.mat * 100);
+    $('#barra-mat').style.width = `${pct}%`;
+    $('#barra-prog').setAttribute('aria-valuenow', String(pct));
+    $('#mat-pct').textContent = `${pct}%`;
+    $('#estagio-texto').textContent = e.mat >= 1 ? 'Composto pronto para colheita' : `Maturação: ${pct}%`;
 
-    const dias = Math.max(0, Math.ceil(((100 - estado.mat) / 100) * 30));
-    $('#tempo-restante').textContent = dias > 0
-      ? `Tempo estimado para colheita: ~${dias} ${dias === 1 ? 'dia' : 'dias'}`
-      : 'Pronto para colheita';
+    const p = previsao();
+    let txtPrevisao;
+    if (p.pronto) txtPrevisao = 'Pronto para colheita';
+    else if (p.dias === null) txtPrevisao = 'Sem previsão: faltam condições para maturar';
+    else txtPrevisao = `Previsão: ~${p.dias} ${p.dias === 1 ? 'dia' : 'dias'} simulados`;
+    $('#previsao').textContent = txtPrevisao;
 
-    marcarAtuador('tampa', estado.tampa === 'aberta', 'Aberta', 'Fechada');
-    marcarAtuador('motor', estado.motor, 'Ligado', 'Desligado');
-    marcarAtuador('aquec', estado.aquec, 'Ligado', 'Desligado');
+    const f = fatores();
+    $('#ritmo').textContent = `Ritmo atual: ${Math.round(f.total * 100)}% do ideal`;
+
+    const r = razao();
+    let txtRel;
+    if (r === null) txtRel = 'Sem material verde ainda';
+    else if (r < RELACAO_IDEAL[0]) txtRel = 'Muito verde: falta material marrom';
+    else if (r > RELACAO_IDEAL[1]) txtRel = 'Muito marrom: falta material verde';
+    else txtRel = 'Equilibrada';
+    $('#relacao').textContent = r === null ? txtRel : `${txtRel} (marrom/verde: ${fmt(r)})`;
+
+    const alerta = $('#alerta');
+    alerta.classList.toggle('visivel', e.proibido > 0);
+    alerta.textContent = e.proibido > 0
+      ? 'Há material que não pode ser compostado nesta mistura. Na lixeira real, ele seria recusado ou separado.'
+      : '';
+
+    const recente = e.dia - e.ultimaAdicao < 0.15;
+    marcarAtuador('entrada', recente, 'Aberta', 'Fechada');
+    marcarAtuador('trit', recente, 'Ligada', 'Parada');
+    marcarAtuador('aquec', e.temp > 40, 'Ativo', 'Parado');
 
     atualizarGrafico();
   }
@@ -73,15 +172,14 @@
     li.querySelector('b').textContent = ativo ? textoOn : textoOff;
   }
 
-  // ---------- Gráfico (SVG puro, sem bibliotecas) ----------
+  // ---------- Gráfico (SVG puro) ----------
   function caminho(valores, [min, max]) {
     const W = 600, H = 200, P = 14;
     const passo = (W - 2 * P) / (MAX_PONTOS - 1);
-    const pontos = valores.map((v, i) => {
-      const x = P + (MAX_PONTOS - valores.length + i) * passo;
-      const y = H - P - ((limitar(v, min, max) - min) / (max - min)) * (H - 2 * P);
-      return { x, y };
-    });
+    const pontos = valores.map((v, i) => ({
+      x: P + (MAX_PONTOS - valores.length + i) * passo,
+      y: H - P - ((limitar(v, min, max) - min) / (max - min)) * (H - 2 * P)
+    }));
     const d = pontos.map((p, i) => `${i ? 'L' : 'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
     return { d, ultimo: pontos[pontos.length - 1] };
   }
@@ -91,11 +189,9 @@
     const u = caminho(historico.umid, limites.umid);
     $('#linha-temp').setAttribute('d', t.d);
     $('#linha-umid').setAttribute('d', u.d);
-    const pt = $('#ponto-temp'), pu = $('#ponto-umid');
-    pt.setAttribute('cx', t.ultimo.x); pt.setAttribute('cy', t.ultimo.y);
-    pu.setAttribute('cx', u.ultimo.x); pu.setAttribute('cy', u.ultimo.y);
+    $('#ponto-temp').setAttribute('cx', t.ultimo.x); $('#ponto-temp').setAttribute('cy', t.ultimo.y);
+    $('#ponto-umid').setAttribute('cx', u.ultimo.x); $('#ponto-umid').setAttribute('cy', u.ultimo.y);
 
-    // Resumo de mínimos e máximos do histórico exibido
     const mm = (lista) => [Math.min(...lista), Math.max(...lista)].map((v) => Math.round(v));
     const [tMin, tMax] = mm(historico.temp);
     const [uMin, uMax] = mm(historico.umid);
@@ -110,107 +206,69 @@
     if (lista.length > MAX_PONTOS) lista.shift();
   }
 
-  // ---------- Telemetria simulada em repouso ----------
-  function variarLeitura() {
-    if (demo) return;
-    estado.temp = limitar(estado.temp + rand(-0.4, 0.4), 26, 36);
-    estado.umid = limitar(estado.umid + rand(-0.8, 0.8), 50, 66);
+  // ---------- Controles ----------
+  function preencherItens() {
+    $('#item').innerHTML = ITENS.map((i) => `<option value="${i.id}">${i.nome}</option>`).join('');
   }
 
-  // ---------- Modo Demonstração ----------
-  const FASES = [
-    {
-      nome: 'Descarte', dur: 2800,
-      inicio: () => { estado.tampa = 'aberta'; registrar('Tampa aberta: ultrassônico detectou aproximação.'); },
-      tick: (p, s) => { estado.peso = s.peso + 0.35 * p; estado.nivel = Math.min(100, s.nivel + 14 * p); },
-      fim: () => { estado.tampa = 'fechada'; registrar(`Tampa fechada. Peso acumulado: ${fmtKg(estado.peso)} kg.`); }
-    },
-    {
-      nome: 'Trituração', dur: 3000,
-      inicio: () => { estado.motor = true; registrar('Motor DC acionado: lâminas trituram o resíduo.'); },
-      tick: (p, s) => { estado.nivel = s.nivel - 12 * p; },
-      fim: () => { estado.motor = false; registrar('Trituração concluída. Volume reduzido.'); }
-    },
-    {
-      nome: 'Aquecimento', dur: 3200,
-      inicio: () => { estado.aquec = true; registrar('Mistura e aquecimento iniciados. Microrganismos ativos.'); },
-      tick: (p, s) => { estado.temp = s.temp + (50 - s.temp) * p; estado.umid = s.umid + (68 - s.umid) * p; },
-      fim: () => {}
-    },
-    {
-      nome: 'Composto finalizado', dur: 2600,
-      inicio: () => { estado.aquec = false; registrar('Resfriamento e maturação em andamento.'); },
-      tick: (p, s) => {
-        estado.mat = s.mat + (100 - s.mat) * p;
-        estado.temp = s.temp + (33 - s.temp) * p;
-        estado.umid = s.umid + (60 - s.umid) * p;
-      },
-      fim: () => registrar('Composto pronto! Adubo disponível para colheita.')
-    }
-  ];
-
-  let demo = null; // { idx, t0, snap, quadro }
-  const botao = $('#btn-demo');
-  const pilula = $('#demo-fase');
-
-  function mostrarFase(texto) {
-    pilula.innerHTML = texto ? `<span class="fase-pill">${texto}</span>` : '';
+  function marcarVelocidade() {
+    document.querySelectorAll('[data-vel]').forEach((b) => {
+      b.setAttribute('aria-pressed', String(Number(b.dataset.vel) === velocidade));
+    });
   }
 
-  function iniciarDemo() {
-    if (demo) return;
-    Object.assign(estado, BASE, { motor: false, aquec: false });
+  function reiniciar() {
+    e = { ...INICIAL };
+    prontoAvisado = false;
     $('#log').innerHTML = '';
-    registrar('Modo demonstração iniciado.');
-    demo = { idx: -1 };
-    botao.disabled = true;
-    botao.textContent = 'Demonstração em andamento…';
-    proximaFase();
-  }
-
-  function proximaFase() {
-    demo.idx += 1;
-    if (demo.idx >= FASES.length) { encerrarDemo(); return; }
-    const fase = FASES[demo.idx];
-    demo.snap = { ...estado };
-    demo.t0 = performance.now();
-    fase.inicio();
-    mostrarFase(`${fase.nome} · ${demo.idx + 1}/${FASES.length}`);
-    demo.quadro = requestAnimationFrame(loop);
-  }
-
-  function loop(agora) {
-    const fase = FASES[demo.idx];
-    const p = Math.min(1, (agora - demo.t0) / fase.dur);
-    fase.tick(p, demo.snap);
+    registrar('Nova simulação iniciada com 1,8 kg de mistura inicial.');
     render();
-    if (p < 1) {
-      demo.quadro = requestAnimationFrame(loop);
-    } else {
-      fase.fim();
-      proximaFase();
-    }
   }
 
-  function encerrarDemo() {
-    demo = null;
-    render();
-    mostrarFase('Demonstração concluída');
-    botao.disabled = false;
-    botao.textContent = 'Repetir demonstração';
+  function ligarEventos() {
+    $('#form-add').addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      const kg = Number($('#kg').value);
+      adicionar($('#item').value, Math.round(kg * 10) / 10);
+    });
+
+    document.querySelectorAll('[data-vel]').forEach((b) => {
+      b.addEventListener('click', () => {
+        velocidade = Number(b.dataset.vel);
+        marcarVelocidade();
+      });
+    });
+
+    $('#btn-pausa').addEventListener('click', (ev) => {
+      pausado = !pausado;
+      ev.currentTarget.textContent = pausado ? 'Continuar' : 'Pausar';
+      registrar(pausado ? 'Simulação pausada.' : 'Simulação retomada.');
+    });
+
+    $('#btn-reset').addEventListener('click', reiniciar);
   }
 
   // ---------- Inicialização ----------
-  botao.addEventListener('click', iniciarDemo);
-
-  setInterval(variarLeitura, 2000);
-
-  // Amostra a cada segundo para formar o histórico do gráfico
-  setInterval(() => {
-    empurrar(historico.temp, estado.temp);
-    empurrar(historico.umid, estado.umid);
-    atualizarGrafico();
-  }, 1000);
-
+  preencherItens();
+  ligarEventos();
+  marcarVelocidade();
+  registrar('Simulação iniciada com 1,8 kg de mistura inicial.');
   render();
+
+  // Avança o modelo 10 vezes por segundo
+  setInterval(() => {
+    if (pausado) return;
+    avancar(0.1 * velocidade);
+    if (e.mat >= 1 && !prontoAvisado) {
+      prontoAvisado = true;
+      registrar('Composto pronto para colheita.', 'pronto');
+    }
+    render();
+  }, 100);
+
+  // Amostra o histórico do gráfico a cada segundo real
+  setInterval(() => {
+    empurrar(historico.temp, e.temp);
+    empurrar(historico.umid, e.umid);
+  }, 1000);
 })();

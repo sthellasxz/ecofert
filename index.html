@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EcoFert — Do descarte à transformação</title>
-  <meta name="description" content="EcoFert: lixeira inteligente de compostagem doméstica, com sensores e automação, que transforma resíduos orgânicos em adubo.">
+  <title>EcoFert — Simulação de compostagem doméstica</title>
+  <meta name="description" content="EcoFert: simulação de uma lixeira inteligente de compostagem doméstica, que acompanha o adubo do descarte à colheita.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,7 +25,7 @@
         <a href="#inicio" data-secao="inicio"><b>01</b>Início</a>
         <a href="#processo" data-secao="processo"><b>02</b>Processo</a>
         <a href="#guia" data-secao="guia"><b>03</b>Guia de resíduos</a>
-        <a href="#dashboard" data-secao="dashboard"><b>04</b>Dashboard</a>
+        <a href="#dashboard" data-secao="dashboard"><b>04</b>Simulação</a>
         <a href="#impacto" data-secao="impacto"><b>05</b>Impacto</a>
       </nav>
     </div>
@@ -37,14 +37,15 @@
     <section id="inicio" class="secao hero">
       <div class="container hero-grid">
         <div class="hero-texto">
-          <span class="selo">Compostagem doméstica · IoT</span>
+          <span class="selo">Protótipo em simulação · Compostagem doméstica</span>
           <h1>EcoFert — <span>Do descarte à transformação</span></h1>
           <p class="lead">Tecnologia que dá um novo destino aos resíduos orgânicos.</p>
-          <p>Restos de comida costumam ir para aterros, onde se decompõem sem oxigênio e liberam metano. A EcoFert transforma esse resíduo em adubo dentro de casa, com automação e sem cheiro.</p>
+          <p>Restos de comida costumam ir para aterros, onde se decompõem sem oxigênio e liberam metano. A EcoFert é uma lixeira inteligente que transforma esse resíduo em adubo dentro de casa, com automação e sem cheiro.</p>
+          <p class="aviso-prototipo">A lixeira ainda está em desenvolvimento. Este site simula como ela funcionaria: você adiciona resíduos da cozinha e acompanha o adubo até ficar pronto.</p>
 
           <div class="acoes">
             <a class="btn btn-primario" href="#processo">Conheça o Funcionamento</a>
-            <a class="btn btn-secundario" href="#guia">O que pode compostar?</a>
+            <a class="btn btn-secundario" href="#dashboard">Simular um composto</a>
           </div>
 
           <ul class="problema" aria-label="Resumo do problema e da solução">
@@ -122,50 +123,68 @@
       </div>
     </section>
 
-    <!-- 04. DASHBOARD IOT -->
+    <!-- 04. SIMULAÇÃO DO COMPOSTO -->
     <section id="dashboard" class="secao">
       <div class="container">
         <header class="cabecalho-secao">
-          <span class="num">04 · Monitoramento IoT</span>
-          <h2>Painel de controle vivo</h2>
-          <p>Telemetria em tempo real. Os valores abaixo são simulados. Em um equipamento real, viriam do ESP32.</p>
+          <span class="num">04 · Simulação</span>
+          <h2>Acompanhe o adubo dia a dia</h2>
+          <p>Os valores são calculados por um modelo simples, não por sensores, porque a lixeira ainda não existe. Adicione resíduos da cozinha e veja em quantos dias o adubo fica pronto.</p>
         </header>
 
-        <div class="barra-status">
-          <span class="online"><i aria-hidden="true"></i>ESP32 on-line · Wi-Fi</span>
-          <span id="estagio-texto">Fase de Maturação: 70%</span>
-          <button type="button" class="btn btn-primario btn-pequeno" id="btn-demo">Modo Demonstração Simulada</button>
+        <form class="sim-controles" id="form-add">
+          <label>Resíduo da cozinha
+            <select id="item"></select>
+          </label>
+          <label>Quantidade (kg)
+            <input id="kg" type="number" min="0.1" max="2" step="0.1" value="0.5">
+          </label>
+          <button type="submit" class="btn btn-primario btn-pequeno">Adicionar à lixeira</button>
+        </form>
+
+        <div class="sim-velocidade" role="group" aria-label="Controles da simulação">
+          <button type="button" class="chip" data-vel="1" aria-pressed="false">1 dia por segundo</button>
+          <button type="button" class="chip" data-vel="5" aria-pressed="true">5 dias por segundo</button>
+          <button type="button" class="chip" data-vel="15" aria-pressed="false">15 dias por segundo</button>
+          <button type="button" class="chip" id="btn-pausa" aria-pressed="false">Pausar</button>
+          <button type="button" class="chip" id="btn-reset">Reiniciar</button>
         </div>
 
-        <div class="demo-fase" id="demo-fase" aria-live="polite"></div>
+        <div class="barra-status">
+          <span class="online"><i aria-hidden="true"></i>Simulação ativa</span>
+          <span id="estagio-texto">Maturação: 0%</span>
+          <span id="previsao" class="previsao" aria-live="polite"></span>
+        </div>
+
+        <div class="alerta" id="alerta" role="alert"></div>
 
         <div class="metricas">
           <article class="metrica">
-            <p class="rotulo">Peso acumulado</p>
+            <p class="rotulo">Resíduo na lixeira</p>
             <p class="valor" id="m-peso">1,8 kg</p>
-            <p class="sensor">Célula de carga · HX711</p>
+            <p class="sensor">Massa total adicionada</p>
           </article>
           <article class="metrica">
-            <p class="rotulo">Temperatura interna</p>
+            <p class="rotulo">Temperatura da massa</p>
             <p class="valor" id="m-temp">31 °C</p>
-            <p class="sensor">Sensor DHT22</p>
+            <p class="sensor">Modelo térmico simulado</p>
           </article>
           <article class="metrica">
             <p class="rotulo">Umidade</p>
             <p class="valor" id="m-umid">58 %</p>
-            <p class="sensor">Sensor DHT22</p>
+            <p class="sensor">Modelo de umidade simulado</p>
           </article>
           <article class="metrica">
-            <p class="rotulo">Nível e tampa</p>
-            <p class="valor" id="m-nivel">35 %</p>
-            <p class="sensor" id="m-tampa">Tampa fechada · Ultrassônico</p>
+            <p class="rotulo">Tempo da simulação</p>
+            <p class="valor" id="m-dia">Dia 0</p>
+            <p class="sensor">Dias decorridos no modelo</p>
           </article>
         </div>
 
         <div class="painel">
           <article class="card grafico">
             <div class="card-cab">
-              <h3>Histórico das últimas leituras</h3>
+              <h3>Histórico de temperatura e umidade</h3>
               <div class="legenda-graf">
                 <span><i class="sw sw-temp"></i>Temperatura</span>
                 <span><i class="sw sw-umid"></i>Umidade</span>
@@ -192,15 +211,16 @@
 
           <article class="card">
             <h3>Maturação e atuadores</h3>
-            <div class="barra" role="progressbar" aria-label="Progresso da maturação" aria-valuemin="0" aria-valuemax="100" id="barra-prog">
+            <div class="barra" role="progressbar" aria-label="Progresso da maturação" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="barra-prog">
               <span id="barra-mat"></span>
             </div>
-            <p class="tempo"><span id="mat-pct">70%</span> · <span id="tempo-restante"></span></p>
+            <p class="tempo"><span id="mat-pct">0%</span> · <span id="ritmo"></span></p>
+            <p class="tempo" id="relacao"></p>
 
             <ul class="atuadores" id="atuadores">
-              <li data-ator="tampa"><span>Tampa (servomotor)</span><b>Fechada</b></li>
-              <li data-ator="motor"><span>Lâminas (motor DC)</span><b>Desligado</b></li>
-              <li data-ator="aquec"><span>Aquecimento da massa</span><b>Desligado</b></li>
+              <li data-ator="entrada"><span>Entrada de resíduos (servomotor)</span><b>Fechada</b></li>
+              <li data-ator="trit"><span>Trituração (motor DC)</span><b>Parada</b></li>
+              <li data-ator="aquec"><span>Aquecimento da massa</span><b>Parado</b></li>
             </ul>
 
             <h4>Registro de eventos</h4>
@@ -216,7 +236,7 @@
         <header class="cabecalho-secao">
           <span class="num">05 · Impacto & ODS</span>
           <h2>Pequenas casas, grande efeito</h2>
-          <p>Estime quanto resíduo deixa de ir ao aterro e quanto metano deixa de ser emitido.</p>
+          <p>Estime quanto resíduo deixaria de ir ao aterro e quanto metano deixaria de ser emitido.</p>
         </header>
 
         <div class="imp-cards">
@@ -280,7 +300,7 @@
 
   <footer class="rodape">
     <div class="container">
-      <p><b>EcoFert</b> · Projeto conceitual de compostagem doméstica com IoT.</p>
+      <p><b>EcoFert</b> · Protótipo em simulação de compostagem doméstica com IoT.</p>
     </div>
   </footer>
 
